@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- <PackageReference Include="OpenCvSharp4" Version="4.5.1.20201229" /> -->
+    <PackageReference Include="Emgu.CV" Version="4.4.0.4099"/>
+    <PackageReference Include="Emgu.CV.runtime.windows" Version="4.4.0.4099"/>
+    <!-- <PackageReference Include="Emgu.CV.runtime.ubuntu" Version="4.4.0.4099"/> -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.1"/>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="5.0.1"/>
+    <PackageReference Include="Tesseract" Version="4.1.1"/>
+  </ItemGroup>
+</Project>
