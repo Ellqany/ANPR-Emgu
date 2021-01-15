@@ -9,7 +9,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace ANPR.AppServices.Repository.Concreate
 {
@@ -51,56 +50,50 @@ namespace ANPR.AppServices.Repository.Concreate
         public DetectCharsRepository(IPreprocessRepository preprocess) => Preprocess = preprocess;
         #endregion
 
-        public async Task<bool> LoadKNNDataAndTrainKNN()
+        public bool LoadKNNDataAndTrainKNN()
         {
-            var task = Task.Factory.StartNew(() =>
+            if (ISModuleLoaded)
             {
-                if (ISModuleLoaded)
-                {
-                    return true;
-                }
-                // note: we effectively have to read the first XML file twice
-                // first, we read the file to get the number of rows (which is the same as the number of samples)
-                // the first time reading the file we can't get the data yet, since we don't know how many rows of data there are
-                // next, reinstantiate our classifications Matrix and training images Matrix with the correct number of rows
-                // then, read the file again and this time read the data into our resized classifications Matrix and training images Matrix
-
-                // for the first time through, declare these to be 1 row by 1 column
-                Matrix<float> mtxClassifications = new Matrix<float>(1, 1);
-
-                mtxClassifications = Preprocess.Readfile(mtxClassifications, "./wwwroot/ANPR/classifications.xml");
-
-                // get the number of rows, i.e. the number of training samples
-                int intNumberOfTrainingSamples = mtxClassifications.Rows;
-
-                // now that we know the number of rows, reinstantiate classifications Matrix and training images Matrix with the actual number of rows
-                mtxClassifications = new Matrix<float>(intNumberOfTrainingSamples, 1);
-
-                // we will resize these when we know the number of rows (i.e. number of training samples)
-                var mtxTrainingImages = new Matrix<float>(intNumberOfTrainingSamples, RESIZED_CHAR_IMAGE_WIDTH * RESIZED_CHAR_IMAGE_HEIGHT);
-
-                // To add to the path
-                mtxClassifications = Preprocess.Readfile(mtxClassifications, "./wwwroot/ANPR/classifications.xml");
-                mtxTrainingImages = Preprocess.Readfile(mtxTrainingImages, "./wwwroot/ANPR/images.xml");
-                // close the training images XML file
-                // train '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-                kNearest.DefaultK = 3;
-                kNearest.AlgorithmType = KNearest.Types.BruteForce;
-                kNearest.IsClassifier = true;
-
-                kNearest.Train(mtxTrainingImages, Emgu.CV.ML.MlEnum.DataLayoutType.RowSample, mtxClassifications);
-
-                // if we got here training was successful so return true
-                ISModuleLoaded = true;
                 return true;
-            });
+            }
+            // note: we effectively have to read the first XML file twice
+            // first, we read the file to get the number of rows (which is the same as the number of samples)
+            // the first time reading the file we can't get the data yet, since we don't know how many rows of data there are
+            // next, reinstantiate our classifications Matrix and training images Matrix with the correct number of rows
+            // then, read the file again and this time read the data into our resized classifications Matrix and training images Matrix
 
-            await task;
-            return task.Result;
+            // for the first time through, declare these to be 1 row by 1 column
+            Matrix<float> mtxClassifications = new Matrix<float>(1, 1);
+
+            mtxClassifications = Preprocess.Readfile(mtxClassifications, "./wwwroot/ANPR/classifications.xml");
+
+            // get the number of rows, i.e. the number of training samples
+            int intNumberOfTrainingSamples = mtxClassifications.Rows;
+
+            // now that we know the number of rows, reinstantiate classifications Matrix and training images Matrix with the actual number of rows
+            mtxClassifications = new Matrix<float>(intNumberOfTrainingSamples, 1);
+
+            // we will resize these when we know the number of rows (i.e. number of training samples)
+            var mtxTrainingImages = new Matrix<float>(intNumberOfTrainingSamples, RESIZED_CHAR_IMAGE_WIDTH * RESIZED_CHAR_IMAGE_HEIGHT);
+
+            // To add to the path
+            mtxClassifications = Preprocess.Readfile(mtxClassifications, "./wwwroot/ANPR/classifications.xml");
+            mtxTrainingImages = Preprocess.Readfile(mtxTrainingImages, "./wwwroot/ANPR/images.xml");
+            // close the training images XML file
+            // train '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+            kNearest.DefaultK = 3;
+            kNearest.AlgorithmType = KNearest.Types.BruteForce;
+            kNearest.IsClassifier = true;
+
+            kNearest.Train(mtxTrainingImages, Emgu.CV.ML.MlEnum.DataLayoutType.RowSample, mtxClassifications);
+
+            // if we got here training was successful so return true
+            ISModuleLoaded = true;
+            return true;
         }
 
-        public async Task<List<PossiblePlate>> DetectCharsInPlates(List<PossiblePlate> listOfPossiblePlates)
+        public List<PossiblePlate> DetectCharsInPlates(List<PossiblePlate> listOfPossiblePlates)
         {
             // this is only for showing steps
             Random random = new Random();
@@ -129,10 +122,10 @@ namespace ANPR.AppServices.Repository.Concreate
 
                 // find all possible chars in the plate,
                 // this function first finds all contours, then only includes contours that could be chars (without comparison to other chars yet)
-                List<PossibleChar> listOfPossibleCharsInPlate = await FindPossibleCharsInPlate(possiblePlate.ImgThresh);
+                List<PossibleChar> listOfPossibleCharsInPlate = FindPossibleCharsInPlate(possiblePlate.ImgThresh);
 
                 // given a list of all possible chars, find groups of matching chars within the plate
-                List<List<PossibleChar>> listOfListsOfMatchingCharsInPlate = await FindListOfListsOfMatchingChars(listOfPossibleCharsInPlate);
+                List<List<PossibleChar>> listOfListsOfMatchingCharsInPlate = FindListOfListsOfMatchingChars(listOfPossibleCharsInPlate);
 
 
                 if ((listOfListsOfMatchingCharsInPlate == null))
@@ -157,7 +150,7 @@ namespace ANPR.AppServices.Repository.Concreate
                     listOfListsOfMatchingCharsInPlate[i].Sort((oneChar, otherChar) => oneChar.BoundingRect.X.CompareTo(otherChar.BoundingRect.X));
 
                     // remove inner overlapping chars
-                    listOfListsOfMatchingCharsInPlate[i] = await RemoveInnerOverlappingChars(listOfListsOfMatchingCharsInPlate[i]);
+                    listOfListsOfMatchingCharsInPlate[i] = RemoveInnerOverlappingChars(listOfListsOfMatchingCharsInPlate[i]);
                 }
 
                 // within each possible plate, suppose the longest list of potential matching chars is the actual list of chars
@@ -177,7 +170,7 @@ namespace ANPR.AppServices.Repository.Concreate
                 List<PossibleChar> longestListOfMatchingCharsInPlate = listOfListsOfMatchingCharsInPlate[intIndexOfLongestListOfChars];
 
                 // perform char recognition on the longest list of matching chars in the plate
-                possiblePlate.StrChars = await RecognizeCharsInPlate(possiblePlate.ImgThresh, longestListOfMatchingCharsInPlate);
+                possiblePlate.StrChars = RecognizeCharsInPlate(possiblePlate.ImgThresh, longestListOfMatchingCharsInPlate);
             }
 
             return listOfPossiblePlates;
@@ -193,7 +186,7 @@ namespace ANPR.AppServices.Repository.Concreate
                 return false;
         }
 
-        public async Task<List<List<PossibleChar>>> FindListOfListsOfMatchingChars(List<PossibleChar> listOfPossibleChars)
+        public List<List<PossibleChar>> FindListOfListsOfMatchingChars(List<PossibleChar> listOfPossibleChars)
         {
             // with this function, we start off with all the possible chars in one big list
             // the purpose of this function is to re-arrange the one big list of chars into a list of lists of matching chars,
@@ -205,7 +198,7 @@ namespace ANPR.AppServices.Repository.Concreate
             foreach (PossibleChar possibleChar in listOfPossibleChars)
             {
                 // find all chars in the big list that match the current char
-                List<PossibleChar> listOfMatchingChars = await FindListOfMatchingChars(possibleChar, listOfPossibleChars);
+                List<PossibleChar> listOfMatchingChars = FindListOfMatchingChars(possibleChar, listOfPossibleChars);
                 // also add the current char to current possible list of matching chars
                 listOfMatchingChars.Add(possibleChar);
 
@@ -227,7 +220,7 @@ namespace ANPR.AppServices.Repository.Concreate
                 // declare new list of lists of chars to get result from recursive call
                 List<List<PossibleChar>> recursiveListOfListsOfMatchingChars = new List<List<PossibleChar>>();
 
-                recursiveListOfListsOfMatchingChars = await FindListOfListsOfMatchingChars(listOfPossibleCharsWithCurrentMatchesRemoved);      // recursive call
+                recursiveListOfListsOfMatchingChars = FindListOfListsOfMatchingChars(listOfPossibleCharsWithCurrentMatchesRemoved);      // recursive call
 
                 foreach (List<PossibleChar> recursiveListOfMatchingChars in recursiveListOfListsOfMatchingChars)
                 {
@@ -252,40 +245,34 @@ namespace ANPR.AppServices.Repository.Concreate
         }
 
         #region Private Methods
-        async Task<List<PossibleChar>> FindPossibleCharsInPlate(Mat imgThresh)
+        List<PossibleChar> FindPossibleCharsInPlate(Mat imgThresh)
         {
-            var task = Task.Factory.StartNew(() =>
+            // this will be the return value
+            List<PossibleChar> listOfPossibleChars = new List<PossibleChar>();
+            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
+
+            var imgThreshCopy = imgThresh.Clone();
+
+            /* TODO Change to default(_) if this is not a reference type */
+            // find all contours in plate
+            CvInvoke.FindContours(imgThreshCopy, contours, null, RetrType.List, ChainApproxMethod.ChainApproxSimple);
+
+            // for each contour
+            for (int i = 0; i <= contours.Size - 1; i++)
             {
-                // this will be the return value
-                List<PossibleChar> listOfPossibleChars = new List<PossibleChar>();
-                VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
+                PossibleChar possibleChar = new PossibleChar(contours[i]);
 
-                var imgThreshCopy = imgThresh.Clone();
-
-                /* TODO Change to default(_) if this is not a reference type */
-                // find all contours in plate
-                CvInvoke.FindContours(imgThreshCopy, contours, null, RetrType.List, ChainApproxMethod.ChainApproxSimple);
-
-                // for each contour
-                for (int i = 0; i <= contours.Size - 1; i++)
+                if (CheckIfPossibleChar(possibleChar))
                 {
-                    PossibleChar possibleChar = new PossibleChar(contours[i]);
-
-                    if (CheckIfPossibleChar(possibleChar))
-                    {
-                        // add to list of possible chars
-                        listOfPossibleChars.Add(possibleChar);
-                    }
+                    // add to list of possible chars
+                    listOfPossibleChars.Add(possibleChar);
                 }
+            }
 
-                return listOfPossibleChars;
-            });
-
-            await task;
-            return task.Result;
+            return listOfPossibleChars;
         }
 
-        async Task<List<PossibleChar>> FindListOfMatchingChars(PossibleChar possibleChar, List<PossibleChar> listOfChars)
+        List<PossibleChar> FindListOfMatchingChars(PossibleChar possibleChar, List<PossibleChar> listOfChars)
         {
             // the purpose of this function is, given a possible char and a big list of possible chars,
             // find all chars in the big list that are a match for the single possible char, and return those matching chars
@@ -304,7 +291,7 @@ namespace ANPR.AppServices.Repository.Concreate
 
                 double dblDistanceBetweenChars = DistanceBetweenChars(possibleChar, possibleMatchingChar);
 
-                double dblAngleBetweenChars = await AngleBetweenChars(possibleChar, possibleMatchingChar);
+                double dblAngleBetweenChars = AngleBetweenChars(possibleChar, possibleMatchingChar);
 
                 double dblChangeInArea = Math.Abs(possibleMatchingChar.IntRectArea - possibleChar.IntRectArea) / (double)possibleChar.IntRectArea;
 
@@ -322,130 +309,112 @@ namespace ANPR.AppServices.Repository.Concreate
         }
 
         // use basic trigonometry (SOH CAH TOA) to calculate angle between chars
-        async Task<double> AngleBetweenChars(PossibleChar firstChar, PossibleChar secondChar)
+        double AngleBetweenChars(PossibleChar firstChar, PossibleChar secondChar)
         {
-            var task = Task.Factory.StartNew(() =>
-            {
-                double dblAdj = Convert.ToDouble(Math.Abs(firstChar.IntCenterX - secondChar.IntCenterX));
-                double dblOpp = Convert.ToDouble(Math.Abs(firstChar.IntCenterY - secondChar.IntCenterY));
+            double dblAdj = Convert.ToDouble(Math.Abs(firstChar.IntCenterX - secondChar.IntCenterX));
+            double dblOpp = Convert.ToDouble(Math.Abs(firstChar.IntCenterY - secondChar.IntCenterY));
 
-                double dblAngleInRad = Math.Atan(dblOpp / dblAdj);
+            double dblAngleInRad = Math.Atan(dblOpp / dblAdj);
 
-                double dblAngleInDeg = dblAngleInRad * (180.0 / Math.PI);
+            double dblAngleInDeg = dblAngleInRad * (180.0 / Math.PI);
 
-                return dblAngleInDeg;
-            });
-
-            await task;
-            return task.Result;
+            return dblAngleInDeg;
         }
 
         // if we have two chars overlapping or to close to each other to possibly be separate chars, remove the inner (smaller) char,
         // this is to prevent including the same char twice if two contours are found for the same char,
         // for example for the letter 'O' both the inner ring and the outer ring may be found as contours, but we should only include the char once
-        async Task<List<PossibleChar>> RemoveInnerOverlappingChars(List<PossibleChar> listOfMatchingChars)
+        List<PossibleChar> RemoveInnerOverlappingChars(List<PossibleChar> listOfMatchingChars)
         {
-            var task = Task.Factory.StartNew(() =>
-            {
-                List<PossibleChar> listOfMatchingCharsWithInnerCharRemoved = new List<PossibleChar>(listOfMatchingChars);
+            List<PossibleChar> listOfMatchingCharsWithInnerCharRemoved = new List<PossibleChar>(listOfMatchingChars);
 
-                foreach (PossibleChar currentChar in listOfMatchingChars)
+            foreach (PossibleChar currentChar in listOfMatchingChars)
+            {
+                foreach (PossibleChar otherChar in listOfMatchingChars)
                 {
-                    foreach (PossibleChar otherChar in listOfMatchingChars)
+                    if (!currentChar.Equals(otherChar))
                     {
-                        if (!currentChar.Equals(otherChar))
+                        // if current char and other char have center points at almost the same location . . .
+                        if (DistanceBetweenChars(currentChar, otherChar) < (currentChar.DblDiagonalSize * MIN_DIAG_SIZE_MULTIPLE_AWAY))
                         {
-                            // if current char and other char have center points at almost the same location . . .
-                            if (DistanceBetweenChars(currentChar, otherChar) < (currentChar.DblDiagonalSize * MIN_DIAG_SIZE_MULTIPLE_AWAY))
+                            // if we get in here we have found overlapping chars
+                            // next we identify which char is smaller, then if that char was not already removed on a previous pass, remove it
+                            if (currentChar.IntRectArea < otherChar.IntRectArea)
                             {
-                                // if we get in here we have found overlapping chars
-                                // next we identify which char is smaller, then if that char was not already removed on a previous pass, remove it
-                                if (currentChar.IntRectArea < otherChar.IntRectArea)
+                                if (listOfMatchingCharsWithInnerCharRemoved.Contains(currentChar))
                                 {
-                                    if (listOfMatchingCharsWithInnerCharRemoved.Contains(currentChar))
-                                    {
-                                        // then remove current char
-                                        listOfMatchingCharsWithInnerCharRemoved.Remove(currentChar);
-                                    }
+                                    // then remove current char
+                                    listOfMatchingCharsWithInnerCharRemoved.Remove(currentChar);
                                 }
-                                else if (listOfMatchingCharsWithInnerCharRemoved.Contains(otherChar))
-                                {
-                                    // then remove other char
-                                    listOfMatchingCharsWithInnerCharRemoved.Remove(otherChar);
-                                }
+                            }
+                            else if (listOfMatchingCharsWithInnerCharRemoved.Contains(otherChar))
+                            {
+                                // then remove other char
+                                listOfMatchingCharsWithInnerCharRemoved.Remove(otherChar);
                             }
                         }
                     }
                 }
+            }
 
-                return listOfMatchingCharsWithInnerCharRemoved;
-            });
-
-            await task;
-            return task.Result;
+            return listOfMatchingCharsWithInnerCharRemoved;
         }
 
         // this is where we apply the actual char recognition
-        async Task<string> RecognizeCharsInPlate(Mat imgThresh, List<PossibleChar> listOfMatchingChars)
+        string RecognizeCharsInPlate(Mat imgThresh, List<PossibleChar> listOfMatchingChars)
         {
-            var task = Task.Factory.StartNew(() =>
+            // this will be the return value, the chars in the lic plate
+            string strChars = "";
+
+            Mat imgThreshColor = new Mat();
+
+            listOfMatchingChars.Sort((oneChar, otherChar) => oneChar.BoundingRect.X.CompareTo(otherChar.BoundingRect.X));   // sort chars from left to right
+
+            CvInvoke.CvtColor(imgThresh, imgThreshColor, ColorConversion.Gray2Bgr);
+
+            // for each char in plate
+            foreach (PossibleChar currentChar in listOfMatchingChars)
             {
-                // this will be the return value, the chars in the lic plate
-                string strChars = "";
+                // draw green box around the char
+                CvInvoke.Rectangle(imgThreshColor, currentChar.BoundingRect, SCALAR_GREEN, 2);
 
-                Mat imgThreshColor = new Mat();
+                // get ROI image of bounding rect
+                Mat imgROItoBeCloned = new Mat(imgThresh, currentChar.BoundingRect);
 
-                listOfMatchingChars.Sort((oneChar, otherChar) => oneChar.BoundingRect.X.CompareTo(otherChar.BoundingRect.X));   // sort chars from left to right
+                // clone ROI image so we don't change original when we resize
+                Mat imgROI = imgROItoBeCloned.Clone();
 
-                CvInvoke.CvtColor(imgThresh, imgThreshColor, ColorConversion.Gray2Bgr);
+                Mat imgROIResized = new Mat();
 
-                // for each char in plate
-                foreach (PossibleChar currentChar in listOfMatchingChars)
+                // resize image, this is necessary for char recognition
+                CvInvoke.Resize(imgROI, imgROIResized, new Size(RESIZED_CHAR_IMAGE_WIDTH, RESIZED_CHAR_IMAGE_HEIGHT));
+
+                // declare a Matrix of the same dimensions as the Image we are adding to the data structure of training images
+                Matrix<float> mtxTemp = new Matrix<float>(imgROIResized.Size);
+
+                // declare a flattened (only 1 row) matrix of the same total size
+                Matrix<float> mtxTempReshaped = new Matrix<float>(1, RESIZED_CHAR_IMAGE_WIDTH * RESIZED_CHAR_IMAGE_HEIGHT);
+
+                // convert Image to a Matrix of Singles with the same dimensions
+                imgROIResized.ConvertTo(mtxTemp, DepthType.Cv32F);
+
+                // flatten Matrix into one row by RESIZED_IMAGE_WIDTH * RESIZED_IMAGE_HEIGHT number of columns
+                for (int intRow = 0; intRow <= RESIZED_CHAR_IMAGE_HEIGHT - 1; intRow++)
                 {
-                    // draw green box around the char
-                    CvInvoke.Rectangle(imgThreshColor, currentChar.BoundingRect, SCALAR_GREEN, 2);
-
-                    // get ROI image of bounding rect
-                    Mat imgROItoBeCloned = new Mat(imgThresh, currentChar.BoundingRect);
-
-                    // clone ROI image so we don't change original when we resize
-                    Mat imgROI = imgROItoBeCloned.Clone();
-
-                    Mat imgROIResized = new Mat();
-
-                    // resize image, this is necessary for char recognition
-                    CvInvoke.Resize(imgROI, imgROIResized, new Size(RESIZED_CHAR_IMAGE_WIDTH, RESIZED_CHAR_IMAGE_HEIGHT));
-
-                    // declare a Matrix of the same dimensions as the Image we are adding to the data structure of training images
-                    Matrix<float> mtxTemp = new Matrix<float>(imgROIResized.Size);
-
-                    // declare a flattened (only 1 row) matrix of the same total size
-                    Matrix<float> mtxTempReshaped = new Matrix<float>(1, RESIZED_CHAR_IMAGE_WIDTH * RESIZED_CHAR_IMAGE_HEIGHT);
-
-                    // convert Image to a Matrix of Singles with the same dimensions
-                    imgROIResized.ConvertTo(mtxTemp, DepthType.Cv32F);
-
-                    // flatten Matrix into one row by RESIZED_IMAGE_WIDTH * RESIZED_IMAGE_HEIGHT number of columns
-                    for (int intRow = 0; intRow <= RESIZED_CHAR_IMAGE_HEIGHT - 1; intRow++)
+                    for (int intCol = 0; intCol <= RESIZED_CHAR_IMAGE_WIDTH - 1; intCol++)
                     {
-                        for (int intCol = 0; intCol <= RESIZED_CHAR_IMAGE_WIDTH - 1; intCol++)
-                        {
-                            mtxTempReshaped[0, (intRow * RESIZED_CHAR_IMAGE_WIDTH) + intCol] = mtxTemp[intRow, intCol];
-                        }
+                        mtxTempReshaped[0, (intRow * RESIZED_CHAR_IMAGE_WIDTH) + intCol] = mtxTemp[intRow, intCol];
                     }
-
-                    float sngCurrentChar;
-
-                    sngCurrentChar = kNearest.Predict(mtxTempReshaped);      // finally we can call Predict !!!
-
-                    strChars += Strings.ChrW(Convert.ToInt32(sngCurrentChar));      // append current char to full string of chars
                 }
 
-                return strChars;
-            });
+                float sngCurrentChar;
 
-            await task;
-            return task.Result;
+                sngCurrentChar = kNearest.Predict(mtxTempReshaped);      // finally we can call Predict !!!
+
+                strChars += Strings.ChrW(Convert.ToInt32(sngCurrentChar));      // append current char to full string of chars
+            }
+
+            return strChars;
         }
         #endregion
     }

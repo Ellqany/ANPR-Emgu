@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using ANPR.AppServices.Service;
 using ANPR.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -25,12 +24,12 @@ namespace ANPR.Controllers
         #endregion
 
         [HttpGet, Route("Detect")]
-        public async Task<IActionResult> Detect(string ImageUrl, LoadType type)
+        public IActionResult Detect(string ImageUrl, LoadType type)
         {
             try
             {
-                await ANPRService.LoadModule();
-                return Ok(await ANPRService.DetectPlate(ImageUrl, type));
+                ANPRService.LoadModule();
+                return Ok(ANPRService.DetectPlate(ImageUrl, type));
             }
             catch (Exception e)
             {

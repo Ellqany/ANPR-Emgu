@@ -1,19 +1,20 @@
-# GCC support can be specified at major, minor, or micro version
-# (e.g. 8, 8.2 or 8.2.0).
-# See https://hub.docker.com/r/library/gcc/ for all supported GCC
-# tags from Docker Hub.
-# See https://docs.docker.com/samples/library/gcc/ for more on how to use this image
-FROM gcc:latest
+FROM mcr.microsoft.com/dotnet/aspnet:5.0 AS base
+WORKDIR /app
+EXPOSE 80
+EXPOSE 443
 
-# These commands copy your files into the specified directory in the image
-# and set that as the working location
-COPY . /usr/src/myapp
-WORKDIR /usr/src/myapp
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+WORKDIR /src
+COPY ["ANPR.csproj", "./"]
+RUN dotnet restore "ANPR.csproj"
+COPY . .
+WORKDIR "/src/."
+RUN dotnet build "ANPR.csproj" -c Release -o /app/build
 
-# This command compiles your app using GCC, adjust for your source code
-RUN g++ -o myapp main.cpp
+FROM build AS publish
+RUN dotnet publish "ANPR.csproj" -c Release -o /app/publish
 
-# This command runs your application, comment out this line to compile only
-CMD ["./myapp"]
-
-LABEL Name=anpr Version=0.0.1
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "ANPR.dll"]

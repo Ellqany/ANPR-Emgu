@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Threading.Tasks;
+
 using ANPR.AppServices.Repository;
 using ANPR.Models;
 using Emgu.CV;
@@ -25,12 +25,12 @@ namespace ANPR.AppServices.Service.Concreate
         }
         #endregion
 
-        public async Task<bool> LoadModule()
+        public bool LoadModule()
         {
-            return await DetectChars.LoadKNNDataAndTrainKNN();
+            return DetectChars.LoadKNNDataAndTrainKNN();
         }
 
-        public async Task<PlateDetectionResult> DetectPlate(string imagePath, LoadType type)
+        public PlateDetectionResult DetectPlate(string imagePath, LoadType type)
         {
             // attempt to open image
             Mat imgOriginalScene =
@@ -42,10 +42,10 @@ namespace ANPR.AppServices.Service.Concreate
             }
 
             // detect plates
-            List<PossiblePlate> listOfPossiblePlates = await DetectPlates.DetectPlatesInScene(imgOriginalScene);
+            List<PossiblePlate> listOfPossiblePlates = DetectPlates.DetectPlatesInScene(imgOriginalScene);
 
             // detect chars in plates
-            listOfPossiblePlates = await DetectChars.DetectCharsInPlates(listOfPossiblePlates);
+            listOfPossiblePlates = DetectChars.DetectCharsInPlates(listOfPossiblePlates);
 
             if (listOfPossiblePlates == null || listOfPossiblePlates.Count == 0)
             {
@@ -68,7 +68,7 @@ namespace ANPR.AppServices.Service.Concreate
                 }
 
                 // draw red rectangle around plate
-                return await ExtractthePoints(licPlate);
+                return ExtractthePoints(licPlate);
             }
         }
 
@@ -86,32 +86,26 @@ namespace ANPR.AppServices.Service.Concreate
             return mat;
         }
 
-        async Task<PlateDetectionResult> ExtractthePoints(PossiblePlate licPlate)
+        PlateDetectionResult ExtractthePoints(PossiblePlate licPlate)
         {
-            var task = Task.Factory.StartNew(() =>
+            // get 4 vertices of rotated rect
+            var ptfRectPoints = licPlate.RrLocationOfPlateInScene.GetVertices();
+
+            // declare 4 points, integer type
+            Point pt0 = new Point(Convert.ToInt32(ptfRectPoints[0].X), Convert.ToInt32(ptfRectPoints[0].Y));
+            Point pt1 = new Point(Convert.ToInt32(ptfRectPoints[1].X), Convert.ToInt32(ptfRectPoints[1].Y));
+            Point pt2 = new Point(Convert.ToInt32(ptfRectPoints[2].X), Convert.ToInt32(ptfRectPoints[2].Y));
+            Point pt3 = new Point(Convert.ToInt32(ptfRectPoints[3].X), Convert.ToInt32(ptfRectPoints[3].Y));
+
+            return new PlateDetectionResult()
             {
-                // get 4 vertices of rotated rect
-                var ptfRectPoints = licPlate.RrLocationOfPlateInScene.GetVertices();
-
-                // declare 4 points, integer type
-                Point pt0 = new Point(Convert.ToInt32(ptfRectPoints[0].X), Convert.ToInt32(ptfRectPoints[0].Y));
-                Point pt1 = new Point(Convert.ToInt32(ptfRectPoints[1].X), Convert.ToInt32(ptfRectPoints[1].Y));
-                Point pt2 = new Point(Convert.ToInt32(ptfRectPoints[2].X), Convert.ToInt32(ptfRectPoints[2].Y));
-                Point pt3 = new Point(Convert.ToInt32(ptfRectPoints[3].X), Convert.ToInt32(ptfRectPoints[3].Y));
-
-                return new PlateDetectionResult()
-                {
-                    Point1 = pt0,
-                    Point2 = pt1,
-                    Point3 = pt2,
-                    Point4 = pt3,
-                    Plate = licPlate.StrChars,
-                    FoundPlate = true
-                };
-            });
-            
-            await task;
-            return task.Result;
+                Point1 = pt0,
+                Point2 = pt1,
+                Point3 = pt2,
+                Point4 = pt3,
+                Plate = licPlate.StrChars,
+                FoundPlate = true
+            };
         }
         #endregion
     }
