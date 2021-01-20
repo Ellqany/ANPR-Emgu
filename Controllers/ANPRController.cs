@@ -1,7 +1,6 @@
 using System;
 using ANPR.AppServices.Service;
 using ANPR.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ANPR.Controllers
@@ -23,21 +22,26 @@ namespace ANPR.Controllers
         }
         #endregion
 
-        [HttpGet, Route("Detect")]
-        public IActionResult Detect(string ImageUrl, LoadType type)
+        [HttpPost, Route("Detect")]
+        public IActionResult Detect([FromBody] PlateDetectionRequest plate)
         {
             try
             {
                 ANPRService.LoadModule();
-                return Ok(ANPRService.DetectPlate(ImageUrl, type));
+                return Ok(ANPRService.DetectPlate(plate.ImageUrl, plate.Type));
             }
             catch (Exception e)
             {
-                return BadRequest(e);
+                PlateDetectionResult result = new PlateDetectionResult()
+                {
+                    FoundPlate = false,
+                    Plate = e.Message
+                };
+                return BadRequest(result);
             }
         }
 
-        [HttpGet, Route("GetViolations")]
-        public IActionResult GetViolations(string Image) => Ok(OCRService.ReadHeatMap(Image));
+        [HttpPost, Route("GetViolations")]
+        public IActionResult GetViolations([FromBody] string Image) => Ok(OCRService.ReadHeatMap(Image));
     }
 }
