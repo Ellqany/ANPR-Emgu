@@ -1,13 +1,9 @@
-using Emgu.CV;
-using Emgu.CV.CvEnum;
-using Emgu.CV.Structure;
-using Emgu.CV.Util;
-using ANPR.Models;
+using ANPRCV.Models;
+using OpenCvSharp;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 
-namespace ANPR.AppServices.Repository.Concreate
+namespace ANPRCV.AppServices.Repository.Concreate
 {
     public class DetectPlatesRepository : IDetectPlatesRepository
     {
@@ -17,8 +13,8 @@ namespace ANPR.AppServices.Repository.Concreate
         readonly IDetectCharsRepository DetectChars;
         readonly IPreprocessRepository Preprocess;
 
-        MCvScalar SCALAR_WHITE = new MCvScalar(255.0, 255.0, 255.0);
-        MCvScalar SCALAR_RED = new MCvScalar(0.0, 0.0, 255.0);
+        Scalar SCALAR_WHITE = new Scalar(255.0, 255.0, 255.0);
+        Scalar SCALAR_RED = new Scalar(0.0, 0.0, 255.0);
         #endregion
 
         #region Constractor
@@ -65,20 +61,18 @@ namespace ANPR.AppServices.Repository.Concreate
         #region  Private Methods
         List<PossibleChar> FindPossibleCharsInScene(Mat imgThresh)
         {
-
             // this is the return value
             List<PossibleChar> listOfPossibleChars = new List<PossibleChar>();
+            Mat imgThreshCopy = imgThresh.Clone();
             int intCountOfPossibleChars = 0;
 
-            Mat imgThreshCopy = imgThresh.Clone();
 
-            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
             /* TODO Change to default(_) if this is not a reference type */
             // find all contours
-            CvInvoke.FindContours(imgThreshCopy, contours, null, RetrType.List, ChainApproxMethod.ChainApproxSimple);
+            Cv2.FindContours(imgThreshCopy, out Point[][] contours, out _, RetrievalModes.List, ContourApproximationModes.ApproxSimple);
 
             // for each contour
-            for (int i = 0; i <= contours.Size - 1; i++)
+            for (int i = 0; i < contours.Length; i++)
             {
                 PossibleChar possibleChar = new PossibleChar(contours[i]);
 
@@ -106,7 +100,7 @@ namespace ANPR.AppServices.Repository.Concreate
             // default listOfMatchingChars.Count - 1
             double dblPlateCenterX = Convert.ToDouble(listOfMatchingChars[0].IntCenterX + listOfMatchingChars[^1].IntCenterX) / 2.0;
             double dblPlateCenterY = Convert.ToDouble(listOfMatchingChars[0].IntCenterY + listOfMatchingChars[^1].IntCenterY) / 2.0;
-            PointF ptfPlateCenter = new PointF(Convert.ToSingle(dblPlateCenterX), Convert.ToSingle(dblPlateCenterY));
+            Point2f ptfPlateCenter = new Point2f(Convert.ToSingle(dblPlateCenterX), Convert.ToSingle(dblPlateCenterY));
 
             // calculate plate width and height
             int intPlateWidth = Convert.ToInt32(Convert.ToDouble(listOfMatchingChars[^1].BoundingRect.X + listOfMatchingChars[^1].BoundingRect.Width - listOfMatchingChars[0].BoundingRect.X) * PLATE_WIDTH_PADDING_FACTOR);
@@ -129,21 +123,20 @@ namespace ANPR.AppServices.Repository.Concreate
             double dblCorrectionAngleInDeg = dblCorrectionAngleInRad * (180.0 / Math.PI);
 
             // assign rotated rect member variable of possible plate
-            possiblePlate.RrLocationOfPlateInScene = new RotatedRect(ptfPlateCenter, new SizeF(Convert.ToSingle(intPlateWidth), Convert.ToSingle(intPlateHeight)), Convert.ToSingle(dblCorrectionAngleInDeg));
+            possiblePlate.RrLocationOfPlateInScene = new RotatedRect(ptfPlateCenter, new Size2f(Convert.ToSingle(intPlateWidth), Convert.ToSingle(intPlateHeight)), Convert.ToSingle(dblCorrectionAngleInDeg));
 
             // final steps are to perform the actual rotation
-            Mat rotationMatrix = new Mat();
             Mat imgRotated = new Mat();
             Mat imgCropped = new Mat();
 
             // get the rotation matrix for our calculated correction angle
-            CvInvoke.GetRotationMatrix2D(ptfPlateCenter, dblCorrectionAngleInDeg, 1.0, rotationMatrix);
+            Mat rotationMatrix = Cv2.GetRotationMatrix2D(ptfPlateCenter, dblCorrectionAngleInDeg, 1.0);
 
             // rotate the entire image
-            CvInvoke.WarpAffine(imgOriginal, imgRotated, rotationMatrix, imgOriginal.Size);
+            Cv2.WarpAffine(imgOriginal, imgRotated, rotationMatrix, imgOriginal.Size());
 
             // crop out the actual plate portion of the rotated image
-            CvInvoke.GetRectSubPix(imgRotated, possiblePlate.RrLocationOfPlateInScene.MinAreaRect().Size, possiblePlate.RrLocationOfPlateInScene.Center, imgCropped);
+            Cv2.GetRectSubPix(imgRotated, possiblePlate.RrLocationOfPlateInScene.BoundingRect().Size, possiblePlate.RrLocationOfPlateInScene.Center, imgCropped);
 
             // copy the cropped plate image into the applicable member variable of the possible plate
             possiblePlate.ImgPlate = imgCropped;

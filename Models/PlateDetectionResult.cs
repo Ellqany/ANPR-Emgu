@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace ANPR.Models
+namespace ANPRCV.Models
 {
     public class PlateDetectionResult
     {

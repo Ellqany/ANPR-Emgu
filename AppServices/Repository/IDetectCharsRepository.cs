@@ -1,7 +1,7 @@
+using ANPRCV.Models;
 using System.Collections.Generic;
-using ANPR.Models;
 
-namespace ANPR.AppServices.Repository
+namespace ANPRCV.AppServices.Repository
 {
     public interface IDetectCharsRepository
     {

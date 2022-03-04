@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Tesseract;
 
-namespace ANPR.AppServices.Service.Concreate
+namespace ANPRCV.AppServices.Service.Concreate
 {
     public class OCRService : IOCRService
     {
@@ -24,7 +24,7 @@ namespace ANPR.AppServices.Service.Concreate
         /// </summary>
         /// <param name="heatMapbytes">cropped image in bytes formate</param>
         /// <returns></returns>
-        string GetViolation(byte[] heatMapbytes)
+        static string GetViolation(byte[] heatMapbytes)
         {
             if (heatMapbytes == null)
             {
@@ -61,7 +61,7 @@ namespace ANPR.AppServices.Service.Concreate
         /// </summary>
         /// <param name="line">the line that contains violations</param>
         /// <returns></returns>
-        List<string> GetViolation(string line)
+        static List<string> GetViolation(string line)
         {
             List<string> Violations = new List<string>();
             var allData = line.Split(':');
@@ -82,14 +82,14 @@ namespace ANPR.AppServices.Service.Concreate
                 {
                     if (i == 0)
                     {
-                        if (violation.ToLower() == "yes")
+                        if (violation.ToLower() == "no")
                         {
                             Violations.Add("قيادة السيارة بدون حزام امان");
                         }
                     }
                     else
                     {
-                        if (violation.ToLower() == "yes")
+                        if (violation.ToLower() == "no")
                         {
                             Violations.Add("عدم ارتداء حزام الامان للمجاور للقائد اثناء السير");
                         }

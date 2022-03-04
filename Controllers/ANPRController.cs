@@ -1,9 +1,9 @@
 using System;
-using ANPR.AppServices.Service;
-using ANPR.Models;
+using ANPRCV.AppServices.Service;
+using ANPRCV.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ANPR.Controllers
+namespace ANPRCV.Controllers
 {
     [Route("api/ANPR")]
     // [Authorize]

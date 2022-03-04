@@ -1,9 +1,7 @@
-using System.Text;
-using System.Threading.Tasks;
-using ANPR.AppServices.Repository;
-using ANPR.AppServices.Repository.Concreate;
-using ANPR.AppServices.Service;
-using ANPR.AppServices.Service.Concreate;
+using ANPRCV.AppServices.Repository;
+using ANPRCV.AppServices.Repository.Concreate;
+using ANPRCV.AppServices.Service;
+using ANPRCV.AppServices.Service.Concreate;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -11,8 +9,10 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ANPR
+namespace ANPRCV
 {
     public class Startup
     {
@@ -107,7 +107,7 @@ namespace ANPR
         }
 
         #region Private Methods
-        IServiceCollection AddServices(IServiceCollection services)
+        static IServiceCollection AddServices(IServiceCollection services)
         {
             services.AddSingleton<IDetectPlatesRepository, DetectPlatesRepository>();
             services.AddSingleton<IDetectCharsRepository, DetectCharsRepository>();

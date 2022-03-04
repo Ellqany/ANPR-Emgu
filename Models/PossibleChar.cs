@@ -1,15 +1,13 @@
-﻿using Emgu.CV;
-using Emgu.CV.Util;
+﻿using OpenCvSharp;
 using System;
-using System.Drawing;
 
-namespace ANPR.Models
+namespace ANPRCV.Models
 {
     public class PossibleChar
     {
         #region Properties
-        public VectorOfPoint Contour { get; set; }
-        public Rectangle BoundingRect { get; set; }
+        public Point[] Contour { get; set; }
+        public Rect BoundingRect { get; set; }
 
         public int IntCenterX { get; set; }
         public int IntCenterY { get; set; }
@@ -20,11 +18,11 @@ namespace ANPR.Models
         #endregion
 
         #region Constractor
-        public PossibleChar(VectorOfPoint _contour)
+        public PossibleChar(Point[] _contour)
         {
             Contour = _contour;
 
-            BoundingRect = CvInvoke.BoundingRectangle(Contour);
+            BoundingRect = Cv2.BoundingRect(Contour);
 
             IntCenterX = Convert.ToInt32((BoundingRect.Left + BoundingRect.Right) / (double)2);
             IntCenterY = Convert.ToInt32((BoundingRect.Top + BoundingRect.Bottom) / (double)2);

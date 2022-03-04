@@ -1,4 +1,4 @@
-﻿namespace ANPR.Models
+﻿namespace ANPRCV.Models
 {
     public enum LoadType
     {

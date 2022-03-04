@@ -1,12 +1,8 @@
-using Emgu.CV;
-using Emgu.CV.CvEnum;
-using Emgu.CV.Structure;
-using Emgu.CV.Util;
-using System.Drawing;
+using Newtonsoft.Json;
+using OpenCvSharp;
 using System.IO;
-using System.Xml.Serialization;
 
-namespace ANPR.AppServices.Repository.Concreate
+namespace ANPRCV.AppServices.Repository.Concreate
 {
     public class PreprocessRepository : IPreprocessRepository
     {
@@ -26,51 +22,60 @@ namespace ANPR.AppServices.Repository.Concreate
 
             Mat imgBlurred = new Mat();
 
-            CvInvoke.GaussianBlur(imgMaxContrastGrayscale, imgBlurred, new Size(GAUSSIAN_BLUR_FILTER_SIZE, GAUSSIAN_BLUR_FILTER_SIZE), 0);       // gaussian blur
+            Cv2.GaussianBlur(imgMaxContrastGrayscale, imgBlurred, new Size(GAUSSIAN_BLUR_FILTER_SIZE, GAUSSIAN_BLUR_FILTER_SIZE), 0);       // gaussian blur
 
             // adaptive threshold to get imgThresh
-            CvInvoke.AdaptiveThreshold(imgBlurred, imgThresh, 255.0, AdaptiveThresholdType.GaussianC, ThresholdType.BinaryInv, ADAPTIVE_THRESH_BLOCK_SIZE, ADAPTIVE_THRESH_WEIGHT);
+            Cv2.AdaptiveThreshold(imgBlurred, imgThresh, 255.0, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.BinaryInv, ADAPTIVE_THRESH_BLOCK_SIZE, ADAPTIVE_THRESH_WEIGHT);
         }
 
-        public Matrix<float> Readfile(Matrix<float> matrix, string FileName)
+        public Mat<float> Readfile(string FileName)
         {
-            XmlSerializer xmlSerializer = new XmlSerializer(matrix.GetType());
-            StreamReader streamReader = new StreamReader(FileName);
-            matrix = (Matrix<float>)xmlSerializer.Deserialize(streamReader);
+            var jsonString = File.ReadAllText(FileName);
+            float[,] newmatrix = JsonConvert.DeserializeObject<float[,]>(jsonString);
+            int rows = newmatrix.GetLength(0);
+            int cols = newmatrix.GetLength(1);
 
-            streamReader.Close();
+            Mat<float> matrix = new Mat<float>(rows, cols);
+
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < cols; j++)
+                {
+                    matrix.Set(i, j, newmatrix[i, j]);
+                }
+            }
+
             return matrix;
         }
 
         #region Private Methods
-        Mat ExtractValue(Mat imgOriginal)
+        static Mat ExtractValue(Mat imgOriginal)
         {
             Mat imgHSV = new Mat();
-            VectorOfMat vectorOfHSVImages = new VectorOfMat();
 
-            CvInvoke.CvtColor(imgOriginal, imgHSV, ColorConversion.Bgr2Hsv);
+            Cv2.CvtColor(imgOriginal, imgHSV, ColorConversionCodes.BGR2HSV);
 
-            CvInvoke.Split(imgHSV, vectorOfHSVImages);
+            Cv2.Split(imgHSV, out Mat[] vectorOfHSVImages);
 
             var imgValue = vectorOfHSVImages[2];
 
             return imgValue;
         }
 
-        Mat MaximizeContrast(Mat imgGrayscale)
+        static Mat MaximizeContrast(Mat imgGrayscale)
         {
             Mat imgTopHat = new Mat();
             Mat imgBlackHat = new Mat();
             Mat imgGrayscalePlusTopHat = new Mat();
             Mat imgGrayscalePlusTopHatMinusBlackHat = new Mat();
 
-            Mat structuringElement = CvInvoke.GetStructuringElement(ElementShape.Rectangle, new Size(3, 3), new Point(-1, -1));
+            Mat structuringElement = Cv2.GetStructuringElement(MorphShapes.Rect, new Size(3, 3), new Point(-1, -1));
 
-            CvInvoke.MorphologyEx(imgGrayscale, imgTopHat, MorphOp.Tophat, structuringElement, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
-            CvInvoke.MorphologyEx(imgGrayscale, imgBlackHat, MorphOp.Blackhat, structuringElement, new Point(-1, -1), 1, BorderType.Default, new MCvScalar());
+            Cv2.MorphologyEx(imgGrayscale, imgTopHat, MorphTypes.TopHat, structuringElement, new Point(-1, -1), 1, BorderTypes.Default, new Scalar());
+            Cv2.MorphologyEx(imgGrayscale, imgBlackHat, MorphTypes.BlackHat, structuringElement, new Point(-1, -1), 1, BorderTypes.Default, new Scalar());
 
-            CvInvoke.Add(imgGrayscale, imgTopHat, imgGrayscalePlusTopHat);
-            CvInvoke.Subtract(imgGrayscalePlusTopHat, imgBlackHat, imgGrayscalePlusTopHatMinusBlackHat);
+            Cv2.Add(imgGrayscale, imgTopHat, imgGrayscalePlusTopHat);
+            Cv2.Subtract(imgGrayscalePlusTopHat, imgBlackHat, imgGrayscalePlusTopHatMinusBlackHat);
 
             return imgGrayscalePlusTopHatMinusBlackHat;
         }

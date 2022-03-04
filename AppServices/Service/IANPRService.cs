@@ -1,6 +1,6 @@
-using ANPR.Models;
+using ANPRCV.Models;
 
-namespace ANPR.AppServices.Service
+namespace ANPRCV.AppServices.Service
 {
     public interface IANPRService
     {

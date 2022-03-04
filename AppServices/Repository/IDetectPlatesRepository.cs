@@ -1,8 +1,8 @@
+using ANPRCV.Models;
+using OpenCvSharp;
 using System.Collections.Generic;
-using ANPR.Models;
-using Emgu.CV;
 
-namespace ANPR.AppServices.Repository
+namespace ANPRCV.AppServices.Repository
 {
     public interface IDetectPlatesRepository
     {

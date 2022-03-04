@@ -1,7 +1,7 @@
-namespace ANPR.AppServices.Service
+namespace ANPRCV.AppServices.Service
 {
     public interface IOCRService
     {
-         string ReadHeatMap(string HeatMap);
+        string ReadHeatMap(string HeatMap);
     }
 }

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace ANPR.Controllers
+namespace ANPRCV.Controllers
 {
     public class HomeController : Controller
     {

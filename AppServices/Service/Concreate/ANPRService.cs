@@ -1,14 +1,12 @@
+using ANPRCV.AppServices.Repository;
+using ANPRCV.Models;
+using OpenCvSharp;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
+using System.IO;
 using System.Linq;
 
-using ANPR.AppServices.Repository;
-using ANPR.Models;
-using Emgu.CV;
-using Emgu.CV.CvEnum;
-
-namespace ANPR.AppServices.Service.Concreate
+namespace ANPRCV.AppServices.Service.Concreate
 {
     public class ANPRService : IANPRService
     {
@@ -25,18 +23,15 @@ namespace ANPR.AppServices.Service.Concreate
         }
         #endregion
 
-        public bool LoadModule()
-        {
-            return DetectChars.LoadKNNDataAndTrainKNN();
-        }
+        public bool LoadModule() => DetectChars.LoadKNNDataAndTrainKNN();
 
         public PlateDetectionResult DetectPlate(string imagePath, LoadType type)
         {
             // attempt to open image
             Mat imgOriginalScene =
-                (type == LoadType.FromPath) ? OpenImageWithErrorHandling(imagePath) : ImageToEmguImage(imagePath);
+                (type == LoadType.FromPath) ? OpenImage(imagePath) : OpenBase64Image(imagePath);
 
-            if (imgOriginalScene == null || imgOriginalScene.IsEmpty)
+            if (imgOriginalScene == null || imgOriginalScene.IsDisposed)
             {
                 return new PlateDetectionResult();
             }
@@ -73,29 +68,28 @@ namespace ANPR.AppServices.Service.Concreate
         }
 
         #region Private Methods
-        Mat OpenImageWithErrorHandling(string path)
+        static Mat OpenImage(string path)
         {
-            return CvInvoke.Imread(path, ImreadModes.Color);
+            byte[] buffer = File.ReadAllBytes(path);
+            return Cv2.ImDecode(buffer, ImreadModes.Color);
         }
 
-        Mat ImageToEmguImage(string path)
+        static Mat OpenBase64Image(string path)
         {
-            Mat mat = new Mat();
             byte[] buffer = Convert.FromBase64String(path);
-            CvInvoke.Imdecode(buffer, ImreadModes.Color, mat);
-            return mat;
+            return Cv2.ImDecode(buffer, ImreadModes.Color);
         }
 
-        PlateDetectionResult ExtractthePoints(PossiblePlate licPlate)
+        static PlateDetectionResult ExtractthePoints(PossiblePlate licPlate)
         {
             // get 4 vertices of rotated rect
-            var ptfRectPoints = licPlate.RrLocationOfPlateInScene.GetVertices();
+            var ptfRectPoints = licPlate.RrLocationOfPlateInScene.Points();
 
             // declare 4 points, integer type
-            Point pt0 = new Point(Convert.ToInt32(ptfRectPoints[0].X), Convert.ToInt32(ptfRectPoints[0].Y));
-            Point pt1 = new Point(Convert.ToInt32(ptfRectPoints[1].X), Convert.ToInt32(ptfRectPoints[1].Y));
-            Point pt2 = new Point(Convert.ToInt32(ptfRectPoints[2].X), Convert.ToInt32(ptfRectPoints[2].Y));
-            Point pt3 = new Point(Convert.ToInt32(ptfRectPoints[3].X), Convert.ToInt32(ptfRectPoints[3].Y));
+            System.Drawing.Point pt0 = new System.Drawing.Point(Convert.ToInt32(ptfRectPoints[0].X), Convert.ToInt32(ptfRectPoints[0].Y));
+            System.Drawing.Point pt1 = new System.Drawing.Point(Convert.ToInt32(ptfRectPoints[1].X), Convert.ToInt32(ptfRectPoints[1].Y));
+            System.Drawing.Point pt2 = new System.Drawing.Point(Convert.ToInt32(ptfRectPoints[2].X), Convert.ToInt32(ptfRectPoints[2].Y));
+            System.Drawing.Point pt3 = new System.Drawing.Point(Convert.ToInt32(ptfRectPoints[3].X), Convert.ToInt32(ptfRectPoints[3].Y));
 
             return new PlateDetectionResult()
             {

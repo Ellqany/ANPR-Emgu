@@ -1,7 +1,6 @@
-﻿using Emgu.CV;
-using Emgu.CV.Structure;
+﻿using OpenCvSharp;
 
-namespace ANPR.Models
+namespace ANPRCV.Models
 {
     public class PossiblePlate
     {

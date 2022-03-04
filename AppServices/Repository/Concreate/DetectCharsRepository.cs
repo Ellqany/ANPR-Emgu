@@ -1,16 +1,12 @@
-using Emgu.CV;
-using Emgu.CV.CvEnum;
-using Emgu.CV.ML;
-using Emgu.CV.Structure;
-using Emgu.CV.Util;
+using ANPRCV.Models;
 using Microsoft.VisualBasic;
-using ANPR.Models;
+using OpenCvSharp;
+using OpenCvSharp.ML;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 
-namespace ANPR.AppServices.Repository.Concreate
+namespace ANPRCV.AppServices.Repository.Concreate
 {
     public class DetectCharsRepository : IDetectCharsRepository
     {
@@ -39,11 +35,10 @@ namespace ANPR.AppServices.Repository.Concreate
         readonly int MIN_NUMBER_OF_MATCHING_CHARS = 3;
         readonly int RESIZED_CHAR_IMAGE_WIDTH = 40;
         readonly int RESIZED_CHAR_IMAGE_HEIGHT = 50;
-        MCvScalar SCALAR_GREEN = new MCvScalar(0.0, 255.0, 0.0);
+        Scalar SCALAR_GREEN = new Scalar(0.0, 255.0, 0.0);
         readonly IPreprocessRepository Preprocess;
 
-        static readonly KNearest kNearest = new KNearest();
-        static bool ISModuleLoaded = false;
+        static readonly KNearest kNearest = KNearest.Create();
         #endregion
 
         #region Constractor
@@ -52,7 +47,7 @@ namespace ANPR.AppServices.Repository.Concreate
 
         public bool LoadKNNDataAndTrainKNN()
         {
-            if (ISModuleLoaded)
+            if (kNearest.IsTrained())
             {
                 return true;
             }
@@ -62,34 +57,19 @@ namespace ANPR.AppServices.Repository.Concreate
             // next, reinstantiate our classifications Matrix and training images Matrix with the correct number of rows
             // then, read the file again and this time read the data into our resized classifications Matrix and training images Matrix
 
-            // for the first time through, declare these to be 1 row by 1 column
-            Matrix<float> mtxClassifications = new Matrix<float>(1, 1);
+            Mat<float> mtxClassifications = Preprocess.Readfile("./wwwroot/ANPR/classifications.json");
+            Mat<float> mtxTrainingImages = Preprocess.Readfile( "./wwwroot/ANPR/images.json");
 
-            mtxClassifications = Preprocess.Readfile(mtxClassifications, "./wwwroot/ANPR/classifications.xml");
-
-            // get the number of rows, i.e. the number of training samples
-            int intNumberOfTrainingSamples = mtxClassifications.Rows;
-
-            // now that we know the number of rows, reinstantiate classifications Matrix and training images Matrix with the actual number of rows
-            mtxClassifications = new Matrix<float>(intNumberOfTrainingSamples, 1);
-
-            // we will resize these when we know the number of rows (i.e. number of training samples)
-            var mtxTrainingImages = new Matrix<float>(intNumberOfTrainingSamples, RESIZED_CHAR_IMAGE_WIDTH * RESIZED_CHAR_IMAGE_HEIGHT);
-
-            // To add to the path
-            mtxClassifications = Preprocess.Readfile(mtxClassifications, "./wwwroot/ANPR/classifications.xml");
-            mtxTrainingImages = Preprocess.Readfile(mtxTrainingImages, "./wwwroot/ANPR/images.xml");
-            // close the training images XML file
+            // close the training images json file
             // train '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
             kNearest.DefaultK = 3;
             kNearest.AlgorithmType = KNearest.Types.BruteForce;
             kNearest.IsClassifier = true;
 
-            kNearest.Train(mtxTrainingImages, Emgu.CV.ML.MlEnum.DataLayoutType.RowSample, mtxClassifications);
+            kNearest.Train(mtxTrainingImages, SampleTypes.RowSample, mtxClassifications);
 
             // if we got here training was successful so return true
-            ISModuleLoaded = true;
             return true;
         }
 
@@ -115,10 +95,10 @@ namespace ANPR.AppServices.Repository.Concreate
                 Preprocess.Start(possiblePlate.ImgPlate, ref possiblePlate.ImgGrayscale, ref possiblePlate.ImgThresh);
 
                 // upscale size by 60% for better viewing and character recognition
-                CvInvoke.Resize(possiblePlate.ImgThresh, possiblePlate.ImgThresh, new Size(), 1.6, 1.6);
+                Cv2.Resize(possiblePlate.ImgThresh, possiblePlate.ImgThresh, new Size(), 1.6, 1.6);
 
                 // threshold again to eliminate any gray areas
-                CvInvoke.Threshold(possiblePlate.ImgThresh, possiblePlate.ImgThresh, 0.0, 255.0, ThresholdType.Binary | ThresholdType.Otsu);
+                Cv2.Threshold(possiblePlate.ImgThresh, possiblePlate.ImgThresh, 0.0, 255.0, ThresholdTypes.Binary);
 
                 // find all possible chars in the plate,
                 // this function first finds all contours, then only includes contours that could be chars (without comparison to other chars yet)
@@ -249,16 +229,14 @@ namespace ANPR.AppServices.Repository.Concreate
         {
             // this will be the return value
             List<PossibleChar> listOfPossibleChars = new List<PossibleChar>();
-            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
-
             var imgThreshCopy = imgThresh.Clone();
 
             /* TODO Change to default(_) if this is not a reference type */
             // find all contours in plate
-            CvInvoke.FindContours(imgThreshCopy, contours, null, RetrType.List, ChainApproxMethod.ChainApproxSimple);
+            Cv2.FindContours(imgThreshCopy, out Point[][] contours, out _, RetrievalModes.List, ContourApproximationModes.ApproxSimple);
 
             // for each contour
-            for (int i = 0; i <= contours.Size - 1; i++)
+            for (int i = 0; i < contours.Length; i++)
             {
                 PossibleChar possibleChar = new PossibleChar(contours[i]);
 
@@ -309,7 +287,7 @@ namespace ANPR.AppServices.Repository.Concreate
         }
 
         // use basic trigonometry (SOH CAH TOA) to calculate angle between chars
-        double AngleBetweenChars(PossibleChar firstChar, PossibleChar secondChar)
+        static double AngleBetweenChars(PossibleChar firstChar, PossibleChar secondChar)
         {
             double dblAdj = Convert.ToDouble(Math.Abs(firstChar.IntCenterX - secondChar.IntCenterX));
             double dblOpp = Convert.ToDouble(Math.Abs(firstChar.IntCenterY - secondChar.IntCenterY));
@@ -370,13 +348,13 @@ namespace ANPR.AppServices.Repository.Concreate
 
             listOfMatchingChars.Sort((oneChar, otherChar) => oneChar.BoundingRect.X.CompareTo(otherChar.BoundingRect.X));   // sort chars from left to right
 
-            CvInvoke.CvtColor(imgThresh, imgThreshColor, ColorConversion.Gray2Bgr);
+            Cv2.CvtColor(imgThresh, imgThreshColor, ColorConversionCodes.GRAY2BGR);
 
             // for each char in plate
             foreach (PossibleChar currentChar in listOfMatchingChars)
             {
                 // draw green box around the char
-                CvInvoke.Rectangle(imgThreshColor, currentChar.BoundingRect, SCALAR_GREEN, 2);
+                Cv2.Rectangle(imgThreshColor, currentChar.BoundingRect, SCALAR_GREEN, 2);
 
                 // get ROI image of bounding rect
                 Mat imgROItoBeCloned = new Mat(imgThresh, currentChar.BoundingRect);
@@ -387,29 +365,28 @@ namespace ANPR.AppServices.Repository.Concreate
                 Mat imgROIResized = new Mat();
 
                 // resize image, this is necessary for char recognition
-                CvInvoke.Resize(imgROI, imgROIResized, new Size(RESIZED_CHAR_IMAGE_WIDTH, RESIZED_CHAR_IMAGE_HEIGHT));
+                Cv2.Resize(imgROI, imgROIResized, new Size(RESIZED_CHAR_IMAGE_WIDTH, RESIZED_CHAR_IMAGE_HEIGHT));
 
                 // declare a Matrix of the same dimensions as the Image we are adding to the data structure of training images
-                Matrix<float> mtxTemp = new Matrix<float>(imgROIResized.Size);
+                Mat<float> mtxTemp = new Mat<float>(imgROIResized.Size());
 
                 // declare a flattened (only 1 row) matrix of the same total size
-                Matrix<float> mtxTempReshaped = new Matrix<float>(1, RESIZED_CHAR_IMAGE_WIDTH * RESIZED_CHAR_IMAGE_HEIGHT);
+                Mat<float> mtxTempReshaped = new Mat<float>(1, RESIZED_CHAR_IMAGE_WIDTH * RESIZED_CHAR_IMAGE_HEIGHT);
 
                 // convert Image to a Matrix of Singles with the same dimensions
-                imgROIResized.ConvertTo(mtxTemp, DepthType.Cv32F);
+                imgROIResized.ConvertTo(mtxTemp, MatType.CV_32F);
 
                 // flatten Matrix into one row by RESIZED_IMAGE_WIDTH * RESIZED_IMAGE_HEIGHT number of columns
                 for (int intRow = 0; intRow <= RESIZED_CHAR_IMAGE_HEIGHT - 1; intRow++)
                 {
                     for (int intCol = 0; intCol <= RESIZED_CHAR_IMAGE_WIDTH - 1; intCol++)
                     {
-                        mtxTempReshaped[0, (intRow * RESIZED_CHAR_IMAGE_WIDTH) + intCol] = mtxTemp[intRow, intCol];
+                        var value = mtxTemp.Get<float>(intRow, intCol);
+                        mtxTempReshaped.Set(0, (intRow * RESIZED_CHAR_IMAGE_WIDTH) + intCol, value);
                     }
                 }
 
-                float sngCurrentChar;
-
-                sngCurrentChar = kNearest.Predict(mtxTempReshaped);      // finally we can call Predict !!!
+                float sngCurrentChar = kNearest.Predict(mtxTempReshaped);      // finally we can call Predict !!!
 
                 strChars += Strings.ChrW(Convert.ToInt32(sngCurrentChar));      // append current char to full string of chars
             }

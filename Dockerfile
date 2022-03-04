@@ -4,4 +4,4 @@ ADD ./Publish/ /ANPR
 ENV ASPNETCORE_URLS=http://*:${PORT} 
 
 WORKDIR /ANPR
-ENTRYPOINT ["dotnet", "ANPR.dll"]
+ENTRYPOINT ["dotnet", "ANPRCV.dll"]
